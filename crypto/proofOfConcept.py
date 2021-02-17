@@ -1,17 +1,88 @@
 # coding: utf-8
 import subprocess
+import sys
 
+# classes
+from StartService import StartService
+from AddService import AddService
+from DelService import DelService
+from FindService import FindService
+from BootService import BootService
 
 class ProofOfConcept:
 
     def __init__(self):
-        self.nom = "Ferrari"
+        self.miseEnServiceOK = False
+
+    def startServiceHandler(self):
+        service = StartService()
+        service.run()
+
+    def addServiceHandler(self):
+        service = AddService()
+        service.run()
+
+    def delServiceHandler(self):
+        service = DelService()
+        service.run()
+
+    def findServiceHandler(self):
+        service = FindService()
+        service.run()
+
+    def bootServiceHandler(self):
+        service = BootService()
+        service.run()
 
 
     def run(self):
-        res = subprocess.check_output(["ls", "-l"], universal_newlines=True)
-        #res = res.split('\n')
-        print("ici "+res)
+        # res = subprocess.check_output(["ls", "-l"], universal_newlines=True)
+        # #res = res.split('\n')
+        # print("ici "+res)
+        # print("\n")
+        # bootService = BootService()
+        # bootService.run()
+
+        while(True):
+            print("Bienvenue dans le serveur, voici les services disponibles:")
+            print("1. Mise en Service")
+            print("2. Ajouter une paire")
+            print("3. Supprimer une paire")
+            print("4. Chercher les n° de cartes associées à un nom")
+            print("5. BOOT de la machine (initialisation)")
+            print("6. Quitter le programme\n")
+
+            print("Entrez votre choix (chiffre correspondant):")
+            chiffreOK = False
+            for line in sys.stdin:
+                try:
+                    choix = int(line)
+                    if choix < 1 or choix > 6:
+                        print("\nErreur, vous n'avez pas introduis un chiffre valide, recommencez:")
+                    else:
+                        break
+                except:
+                    print("\nErreur, vous n'avez pas introduis un chiffre, recommencez:")
+                
+            
+            if choix == 1:
+                self.startServiceHandler()
+            elif choix == 2:
+                self.addServiceHandler()
+            elif choix == 3:
+                self.delServiceHandler()
+            elif choix == 4:
+                self.findServiceHandler()
+            elif choix == 5:
+                self.bootServiceHandler()
+            elif choix == 6:
+                print("Aurevoir!")
+                break
+
+
+            #print("choix: "+str(choix))
+
+
 
 
 
@@ -62,7 +133,7 @@ pof.run()
 
 
 
-
+# Phase de décryptage
 #ce programme est en premier lieu un programme qui déchiffre 
 #pour les clés:
 # 1. demander mdp à l'user1
