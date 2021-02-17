@@ -14,6 +14,10 @@ cat mdp-cle1 | shasum -a 256 > mdp-cle1-hache
 
 cat mdp-cle2 | shasum -a 256 > mdp-cle2-hache
 
+
+
+
+
 Cryptage:
 
 openssl enc -aes-256-cbc -in mdp-cle1 -out ../cle-usb-1/key1 -K $(cat mdp-cle1-hache) -iv 0
