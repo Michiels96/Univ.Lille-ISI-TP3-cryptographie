@@ -13,6 +13,7 @@ class ProofOfConcept:
 
     def __init__(self):
         self.miseEnServiceOK = False
+        self.bootOK = False
 
     def startServiceHandler(self):
         service = StartService()
@@ -53,7 +54,6 @@ class ProofOfConcept:
             print("6. Quitter le programme\n")
 
             print("Entrez votre choix (chiffre correspondant):")
-            chiffreOK = False
             for line in sys.stdin:
                 try:
                     choix = int(line)
@@ -66,17 +66,37 @@ class ProofOfConcept:
                 
             
             if choix == 1:
+                # if self.bootOK == True:
+                #     res = self.startServiceHandler()
+                #     if res == 0:
+                #         self.miseEnServiceOK = True
+                # else:
+                #     print("Erreur, fichiers manquants")
                 self.startServiceHandler()
             elif choix == 2:
+                # if self.miseEnServiceOK == True:
+                #     self.addServiceHandler()
+                # else:
+                #     print("Erreur, fichiers manquants")
                 self.addServiceHandler()
             elif choix == 3:
+                # if self.miseEnServiceOK == True:
+                #     self.delServiceHandler()
+                # else:
+                #     print("Erreur, fichiers manquants")
                 self.delServiceHandler()
             elif choix == 4:
+                # if self.miseEnServiceOK == True:
+                #     self.findServiceHandler()
+                # else:
+                #     print("Erreur, fichiers manquants")
                 self.findServiceHandler()
             elif choix == 5:
                 self.bootServiceHandler()
+                self.bootOK = True
             elif choix == 6:
                 print("Aurevoir!")
+                subprocess.run(["rm -rf ./ramdisk/*"], shell=True)
                 break
 
 
@@ -98,25 +118,25 @@ pof.run()
 #   un hash se fait dans un sens, impossible de "dé-hasher"
 # 1. hasher mdp-cle1
 # (depuis crypto/dossier-critique)
-#   cat mdp-cle1 | shasum -a 256 > mdp-cle1-hache
-# 2. avec openssl, crypter mdp-cle1 avec mdp-cle1-hache comme clé (=> openssl(mdp-cle1, mdp-cle1-hache) où -K est mdp-cle1-hache) 
+#   cat mdp-cle1 | shasum -a 256 > mdp-cle1-hashe
+# 2. avec openssl, crypter mdp-cle1 avec mdp-cle1-hashe comme clé (=> openssl(mdp-cle1, mdp-cle1-hashe) où -K est mdp-cle1-hashe) 
 #   et le mettre dans cle-usb-1/key1
 # (depuis crypto/)
-#   openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle1-hache -out ./cle-usb-1/key1 -K $(cat ./dossier-critique/mdp-cle1-hache)
+#   openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle1-hashe -out ./cle-usb-1/key1 -K $(cat ./dossier-critique/mdp-cle1-hashe)
 
 # 1. hasher mdp-cle2
 # (depuis crypto/dossier-critique)
-#   cat mdp-cle2 | shasum -a 256 > mdp-cle2-hache
-# 2. avec openssl, crypter mdp-cle2 avec mdp-cle2-hache comme clé (=> openssl(mdp-cle2, mdp-cle2-hache) où -K est mdp-cle2-hache) 
+#   cat mdp-cle2 | shasum -a 256 > mdp-cle2-hashe
+# 2. avec openssl, crypter mdp-cle2 avec mdp-cle2-hashe comme clé (=> openssl(mdp-cle2, mdp-cle2-hashe) où -K est mdp-cle2-hashe) 
 #   et le mettre dans cle-usb-2/key2
 # (depuis crypto/)
-#   openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle2-hache -out ./cle-usb-2/key2 -K $(cat ./dossier-critique/mdp-cle2-hache)
+#   openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle2-hashe -out ./cle-usb-2/key2 -K $(cat ./dossier-critique/mdp-cle2-hashe)
 
 
 # Cette partie n'est pas nécessaire à garder car ce sont des fichiers situés sur ramdisk/
 #
 # key1.decrypt et key2.decrypt sont des fichiers qui contiennent chaqu'un un mdp hashé 
-#   ce sont les équivalants à ./dossier-critique/mdp-cle1-hache ./dossier-critique/mdp-cle2-hache
+#   ce sont les équivalants à ./dossier-critique/mdp-cle1-hashe ./dossier-critique/mdp-cle2-hashe
 
 
 # Pour créer le dataFile.decrypt:
@@ -136,8 +156,8 @@ pof.run()
 # Phase de décryptage
 #ce programme est en premier lieu un programme qui déchiffre 
 #pour les clés:
-# 1. demander mdp à l'user1
-# 1.2. hacher mdp user1 => hash(mdpUser1)
+# 1.1. demander mdp à l'user1
+# 1.2. hasher mdp user1 => hash(mdpUser1)
 # (depuis crypto/)
 #   $(mdpUser1) | shasum -a 256 > hashedUserPassword
 # 1.3. décrypter avec openssl(key1, hash(mdpUser1)) => key1.decrypt
@@ -147,7 +167,7 @@ pof.run()
 
 
 # 2.1. demander mdp à l'user2
-# 2.2. hacher mdp user2 => hash(mdpUser2)
+# 2.2. hasher mdp user2 => hash(mdpUser2)
 # (depuis crypto/)
 #   $(mdpUser2) | shasum -a 256 > hashedUserPassword
 # 2.3. décrypter avec openssl(key2, hash(mdpUser2)) => key2.decrypt
