@@ -1,6 +1,8 @@
 # coding: utf-8
 import subprocess
 import sys
+import os.path
+from os import path
 
 # classes
 from StartService import StartService
@@ -15,35 +17,45 @@ class ProofOfConcept:
         self.miseEnServiceOK = False
         self.bootOK = False
 
+        #initialisation des objets
+        self.startService = StartService()
+        self.addService = AddService()
+        self.delService = DelService()
+        self.findService = FindService()
+        self.bootService = BootService()
+
     def startServiceHandler(self):
-        service = StartService()
-        service.run()
+        return self.startService.run()
 
     def addServiceHandler(self):
-        service = AddService()
-        service.run()
+        return self.addService.run()
 
     def delServiceHandler(self):
-        service = DelService()
-        service.run()
+        return self.delService.run()
 
     def findServiceHandler(self):
-        service = FindService()
-        service.run()
+        return self.findService.run()
 
     def bootServiceHandler(self):
-        service = BootService()
-        service.run()
+        return self.bootService.run()
 
+    def cryptNewData(self):
+        # but: crypter ramdisk/unlockedFile => /disk/dataFile
+        # Création dataFile.decrypt
+        res = subprocess.run(["openssl enc -aes-256-ecb -in ./ramdisk/unlockedFile -out ./ramdisk/dataFile.decrypt -K $(cat ./ramdisk/key2.decrypt)"], shell=True, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            print("\tErreur, unlockedFile n'a pu être crypté - cryptNewData échoué\n")
+            return -1
+
+        # Modification dataFile
+        res = subprocess.run(["openssl enc -aes-256-ecb -in ./ramdisk/dataFile.decrypt -out ./disk/dataFile -K $(cat ./ramdisk/key1.decrypt)"], shell=True, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            print("\tErreur, dataFile.decrypt n'a pu être crypté - cryptNewData échoué\n")
+            return -1
 
     def run(self):
-        # res = subprocess.check_output(["ls", "-l"], universal_newlines=True)
-        # #res = res.split('\n')
-        # print("ici "+res)
-        # print("\n")
-        # bootService = BootService()
-        # bootService.run()
-
+        if path.exists('./disk/dataFile') == True:
+            self.bootOK = True
         while(True):
             print("Bienvenue dans le serveur, voici les services disponibles:")
             print("1. Mise en Service")
@@ -66,44 +78,49 @@ class ProofOfConcept:
                 
             
             if choix == 1:
-                # if self.bootOK == True:
-                #     res = self.startServiceHandler()
-                #     if res == 0:
-                #         self.miseEnServiceOK = True
-                # else:
-                #     print("Erreur, fichiers manquants")
-                self.startServiceHandler()
+                if self.bootOK == True:
+                    res = self.startServiceHandler()
+                    if res == 0:
+                        self.miseEnServiceOK = True
+                else:
+                    print("\tErreur, vous devez d'abord initialiser les supports\n")
             elif choix == 2:
-                # if self.miseEnServiceOK == True:
-                #     self.addServiceHandler()
-                # else:
-                #     print("Erreur, fichiers manquants")
-                self.addServiceHandler()
+                if self.miseEnServiceOK == True:
+                    res = self.addServiceHandler()
+                    if res == 0:
+                        self.cryptNewData()
+                else:
+                    print("\tErreur, mise en service requise\n")
             elif choix == 3:
-                # if self.miseEnServiceOK == True:
-                #     self.delServiceHandler()
-                # else:
-                #     print("Erreur, fichiers manquants")
-                self.delServiceHandler()
+                if self.miseEnServiceOK == True:
+                    res = self.delServiceHandler()
+                    if res == 0:
+                        self.cryptNewData()
+                else:
+                    print("\tErreur, mise en service requise\n")
             elif choix == 4:
-                # if self.miseEnServiceOK == True:
-                #     self.findServiceHandler()
-                # else:
-                #     print("Erreur, fichiers manquants")
-                self.findServiceHandler()
+                if self.miseEnServiceOK == True:
+                    self.findServiceHandler()
+                else:
+                    print("\tErreur, mise en service requise\n")
             elif choix == 5:
-                self.bootServiceHandler()
-                self.bootOK = True
+                print("Cela supprimera déjà les fichiers existants dans /disk, /ramdisk, /cle-usb-1 et /cle-usb-2\n\tEtes vous sur? (O/N)")
+                choix = ''
+                for line in sys.stdin:
+                    choix = line
+                    break
+              
+                if choix == "Oui\n" or choix == "oui\n" or choix == "O\n" or choix == "o\n":
+                    res = self.bootServiceHandler()
+                    if res == 0:
+                        self.bootOK = True  
+                else:
+                    print("\tInitialisation annulée, OUF! :o\n")
+                      
             elif choix == 6:
                 print("Aurevoir!")
                 subprocess.run(["rm -rf ./ramdisk/*"], shell=True)
                 break
-
-
-            #print("choix: "+str(choix))
-
-
-
 
 
 
@@ -113,13 +130,13 @@ pof.run()
 
 
 # Phase de BOOT
-# ce qu'il y a dans les clés lorsqu'ils sont décryptés: un mdp hashé  (il ne sera dès lors impossible de connaitre le véritable mdp car hashage est une fct à sens unique)
+# ce qu'il y a dans les clés lorsqu'ils sont décryptés: un mdp hashé (il ne sera dès lors impossible de connaitre le véritable mdp car hashage est une fct à sens unique)
 # il faut alors, lors de la création de key1 et key2, hasher les mot de passe et les mettre respectivement dans key1 et key2.
 #   un hash se fait dans un sens, impossible de "dé-hasher"
 # 1. hasher mdp-cle1
 # (depuis crypto/dossier-critique)
 #   cat mdp-cle1 | shasum -a 256 > mdp-cle1-hashe
-# 2. avec openssl, crypter mdp-cle1 avec mdp-cle1-hashe comme clé (=> openssl(mdp-cle1, mdp-cle1-hashe) où -K est mdp-cle1-hashe) 
+# 2. avec openssl, crypter mdp-cle1-hashe avec mdp-cle1-hashe comme clé (=> openssl(mdp-cle1-hashe, mdp-cle1-hashe) où -K est mdp-cle1-hashe) 
 #   et le mettre dans cle-usb-1/key1
 # (depuis crypto/)
 #   openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle1-hashe -out ./cle-usb-1/key1 -K $(cat ./dossier-critique/mdp-cle1-hashe)
@@ -127,7 +144,7 @@ pof.run()
 # 1. hasher mdp-cle2
 # (depuis crypto/dossier-critique)
 #   cat mdp-cle2 | shasum -a 256 > mdp-cle2-hashe
-# 2. avec openssl, crypter mdp-cle2 avec mdp-cle2-hashe comme clé (=> openssl(mdp-cle2, mdp-cle2-hashe) où -K est mdp-cle2-hashe) 
+# 2. avec openssl, crypter mdp-cle2-hashe avec mdp-cle2-hashe comme clé (=> openssl(mdp-cle2-hashe, mdp-cle2-hashe) où -K est mdp-cle2-hashe) 
 #   et le mettre dans cle-usb-2/key2
 # (depuis crypto/)
 #   openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle2-hashe -out ./cle-usb-2/key2 -K $(cat ./dossier-critique/mdp-cle2-hashe)
@@ -153,7 +170,7 @@ pof.run()
 
 
 
-# Phase de décryptage
+# Phase de décryptage (Mise en service)
 #ce programme est en premier lieu un programme qui déchiffre 
 #pour les clés:
 # 1.1. demander mdp à l'user1

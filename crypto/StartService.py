@@ -11,8 +11,8 @@ class StartService:
         f = open(file, mode)
         if mode == "w":
             f.write(content)
-        elif mode == "r":
-            print("ici "+str(f.read()))
+        # elif mode == "r":
+        #     print("ici "+str(f.read()))
         f.close
 
 
@@ -83,8 +83,7 @@ class StartService:
             return -1
 
         print("\tMise en service réussie\n")
+        return 0
 
 
 
-
-        
