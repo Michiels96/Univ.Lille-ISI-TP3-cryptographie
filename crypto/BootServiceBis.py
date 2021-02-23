@@ -29,6 +29,7 @@ class BootService:
 
         # Write the XORd bytes to the output file	
         open(fichierSortie, 'wb').write(xord_byte_array)
+        
 
     def run(self):
         print("\n\tService - Initialisation (BOOT) - Sélectionné\n")
@@ -39,38 +40,19 @@ class BootService:
         subprocess.run(["rm -rf ./ramdisk/*"], shell=True)
         subprocess.run(["rm -rf ./disk/*"], shell=True)
 
-        
-
         print("----- Etape 1: création de valeurs random pour mainKey.decrypt, key1.decrypt, key1a.decrypt, key2.decrypt et key2a.decrypt -----")
-        subprocess.check_output(["dd if=/dev/random of=ramdisk/binaryContent bs=32 count=1"], shell=True, universal_newlines=True)
-        subprocess.check_output(["cat ./ramdisk/binaryContent | shasum -a 256 > ./ramdisk/mainKey.decrypt"], shell=True, universal_newlines=True)
-        
-        subprocess.check_output(["dd if=/dev/random of=ramdisk/binaryContent bs=32 count=1"], shell=True, universal_newlines=True)
-        subprocess.check_output(["cat ./ramdisk/binaryContent | shasum -a 256 > ./ramdisk/key1.decrypt"], shell=True, universal_newlines=True)
+        subprocess.check_output(["dd if=/dev/random of=ramdisk/mainKey.decrypt bs=32 count=1"], shell=True, universal_newlines=True)
+        subprocess.check_output(["dd if=/dev/random of=ramdisk/key1.decrypt bs=32 count=1"], shell=True, universal_newlines=True)
+        subprocess.check_output(["dd if=/dev/random of=ramdisk/key1a.decrypt bs=32 count=1"], shell=True, universal_newlines=True)    
+        subprocess.check_output(["dd if=/dev/random of=ramdisk/key2.decrypt bs=32 count=1"], shell=True, universal_newlines=True)
+        subprocess.check_output(["dd if=/dev/random of=ramdisk/key2a.decrypt bs=32 count=1"], shell=True, universal_newlines=True)
 
-        subprocess.check_output(["dd if=/dev/random of=ramdisk/binaryContent bs=32 count=1"], shell=True, universal_newlines=True)  
-        subprocess.check_output(["cat ./ramdisk/binaryContent | shasum -a 256 > ./ramdisk/key1a.decrypt"], shell=True, universal_newlines=True)
-  
-        subprocess.check_output(["dd if=/dev/random of=ramdisk/binaryContent bs=32 count=1"], shell=True, universal_newlines=True)
-        subprocess.check_output(["cat ./ramdisk/binaryContent | shasum -a 256 > ./ramdisk/key2.decrypt"], shell=True, universal_newlines=True)
-  
-        subprocess.check_output(["dd if=/dev/random of=ramdisk/binaryContent bs=32 count=1"], shell=True, universal_newlines=True)
-        subprocess.check_output(["cat ./ramdisk/binaryContent | shasum -a 256 > ./ramdisk/key2a.decrypt"], shell=True, universal_newlines=True)
-  
         
         print("----- Etape 2: XOR avec toutes les combinaisons -----")
-        self.operationXOR("./ramdisk/key1a.decrypt", "./ramdisk/key2.decrypt", "./ramdisk/XORTmp")
-        subprocess.check_output(["cat ./ramdisk/XORTmp | shasum -a 256 > ./ramdisk/XORKey1aKey2"], shell=True, universal_newlines=True)
-  
-        self.operationXOR("./ramdisk/key1a.decrypt", "./ramdisk/key2a.decrypt", "./ramdisk/XORTmp")
-        subprocess.check_output(["cat ./ramdisk/XORTmp | shasum -a 256 > ./ramdisk/XORKey1aKey2a"], shell=True, universal_newlines=True)
-  
-        self.operationXOR("./ramdisk/key1.decrypt", "./ramdisk/key2.decrypt", "./ramdisk/XORTmp")
-        subprocess.check_output(["cat ./ramdisk/XORTmp | shasum -a 256 > ./ramdisk/XORKey1Key2"], shell=True, universal_newlines=True)
-  
-        self.operationXOR("./ramdisk/key1.decrypt", "./ramdisk/key2a.decrypt", "./ramdisk/XORTmp")
-        subprocess.check_output(["cat ./ramdisk/XORTmp | shasum -a 256 > ./ramdisk/XORKey1Key2a"], shell=True, universal_newlines=True)
-  
+        self.operationXOR("./ramdisk/key1a.decrypt", "./ramdisk/key2.decrypt", "./ramdisk/XORKey1aKey2")
+        self.operationXOR("./ramdisk/key1a.decrypt", "./ramdisk/key2a.decrypt", "./ramdisk/XORKey1aKey2a")
+        self.operationXOR("./ramdisk/key1.decrypt", "./ramdisk/key2.decrypt", "./ramdisk/XORKey1Key2")
+        self.operationXOR("./ramdisk/key1.decrypt", "./ramdisk/key2a.decrypt", "./ramdisk/XORKey1Key2a")
 
         
         print("----- Etape 3: cryptage du mainKey.decrypt avec les 4 combinaisons -----")

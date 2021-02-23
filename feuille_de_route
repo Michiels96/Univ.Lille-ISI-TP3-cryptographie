@@ -1,0 +1,215 @@
+PARTIE 1
+
+Phase de BOOT (initialisation)
+Ce qu'il y a dans les clés lorsqu'ils sont décryptés: un mdp hashé (il ne sera dès lors impossible de connaitre le véritable mdp car hashage est une fct à sens unique)
+il faut alors, lors de la création de key1 et key2, hasher les mot de passe et les mettre respectivement dans key1 et key2.
+  Un hash se fait dans un sens, impossible de "dé-hasher"
+1. hasher mdp-cle1
+(depuis crypto/dossier-critique)
+  cat mdp-cle1 | shasum -a 256 > mdp-cle1-hashe
+2. avec openssl, crypter mdp-cle1-hashe avec mdp-cle1-hashe comme clé (=> openssl(mdp-cle1-hashe, mdp-cle1-hashe) où -K est mdp-cle1-hashe) 
+  et le mettre dans cle-usb-1/key1
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle1-hashe -out ./cle-usb-1/key1 -K $(cat ./dossier-critique/mdp-cle1-hashe)
+
+1. hasher mdp-cle2
+(depuis crypto/dossier-critique)
+  cat mdp-cle2 | shasum -a 256 > mdp-cle2-hashe
+2. avec openssl, crypter mdp-cle2-hashe avec mdp-cle2-hashe comme clé (=> openssl(mdp-cle2-hashe, mdp-cle2-hashe) où -K est mdp-cle2-hashe) 
+  et le mettre dans cle-usb-2/key2
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./dossier-critique/mdp-cle2-hashe -out ./cle-usb-2/key2 -K $(cat ./dossier-critique/mdp-cle2-hashe)
+
+
+Cette partie suivante contient des fichiers qui ne sont pas nécessaire à garder car ce sont des fichiers situés sur ramdisk/
+
+key1.decrypt et key2.decrypt sont des fichiers qui contiennent chaqu'un un mdp hashé. 
+  Ce sont les équivalants à ./dossier-critique/mdp-cle1-hashe ./dossier-critique/mdp-cle2-hashe
+
+
+Pour créer le dataFile.decrypt:
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./dossier-critique/unlockedFile -out ./ramdisk/dataFile.decrypt -K $(cat ./dossier-critique/key2.decrypt)
+
+Pour créer le dataFile:
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./dossier-critique/dataFile.decrypt -out ./disk/dataFile -K $(cat ./dossier-critique/key1.decrypt)
+
+
+
+
+
+
+
+Phase de décryptage (Mise en service)
+Cette partie du programme concerne le déchiffrage.
+Pour les clés:
+1.1. demander mdp à l'user1
+1.2. hasher mdp user1 => hash(mdpUser1)
+(depuis crypto/)
+  $(mdpUser1) | shasum -a 256 > hashedUserPassword
+1.3. décrypter avec openssl(key1, hash(mdpUser1)) => key1.decrypt
+(depuis crypto/)
+  openssl enc -d -aes-256-ecb -in ./cle-usb-1/key1 -out ./ramdisk/key1.decrypt -K $(hash(mdpUser1))
+1.4. comparer les hashs reçu d'openssl et le hash du mdp entré par l'user1
+
+
+2.1. demander mdp à l'user2
+2.2. hasher mdp user2 => hash(mdpUser2)
+(depuis crypto/)
+  $(mdpUser2) | shasum -a 256 > hashedUserPassword
+2.3. décrypter avec openssl(key2, hash(mdpUser2)) => key2.decrypt
+(depuis crypto/)
+  openssl enc -d -aes-256-ecb -in ./cle-usb-2/key2 -out ./ramdisk/key2.decrypt -K $(hash(mdpUser2))
+2.4. comparer les hashs reçu d'openssl et le hash du mdp entré par l'user2
+
+3. Décrypter le dataFile sur disk/
+(depuis crypto/)
+  openssl enc -d -aes-256-ecb -in ./disk/dataFile -out ./ramdisk/dataFile.decrypt -K $(cat ./ramdisk/key1.decrypt)
+(depuis crypto/)
+  openssl enc -d -aes-256-ecb -in ./ramdisk/dataFile.decrypt -out ./ramdisk/unlockedFile -K $(cat ./ramdisk/key2.decrypt)
+
+
+
+PARTIE 2
+On nous informe qu'un des 2 ou les 2 responsables peuvent ne pas être présent lors de la (re)mise en service du serveur.
+Chaque responsable à son propre représentant, qui est présent si le responsable ne l'est pas.
+
+Il y à tjrs que 2 clé usbs (cle-usb-1/ et cle-usb-2/). 
+Lorsqu'un responsable n'est pas présent, sa clé ne le sera pas non plus.
+Dès lors, key1 et/ou key2 peuvent ne pas être présent.
+Si l'un d'entre eux (ou les 2) ne sont pas présent, la/les clé(s) des représentants le seront (key1a et/ou key2a).
+
+Le programme doit rester transparant face à cette possibilité. Dès lors, comme mentionné dans le texte, "un responsable peut ne pas être présent".
+On sous-entend alors que dans la majorité des cas il reste présent. Il reste donc prioritaire lors du choix de la clé usb
+=> key1a < key1 et key2a < key2
+
+Il reste un problème. Celui de pouvoir crypter le même fichier sur le disque avec la possibilité d'avoir plusieurs clés qui peuvent ne pas être présentes.
+On a aussi décidé d'au lieu de garder un mdp hashé dans les keys des clés usb, on allait plutot y mettre une valeur donnée aléatoirement puis la hasher.
+Comme ça, il reste impossible à quiconque de trouver cette valeur. La sécurité sera renforcée. Mais la clé de crytage ('-K') reste une mot de passe.
+
+Pour résoudre le premier gros problème de la partie2, nous avons fait appel à un système XOR.
+Lorsque l'on dois pouvoir utilisé une seule et même clé de décryptage pour le même fichier, 
+nous réalisons un nouveau fichier qui corresponds, pour chaque combinaison de clés, à l'opération XOR de 2 clés.
+De ce fait, faire une XOR entre une clé A et une clé B donne le même résultat car l'opération XOR est associatif.
+A XOR B == B XOR A 
+
+Comme la commande openssl ne peut utiliser une clé -K qu'avec des chiffres et des lettres (donc non binaire),
+on hash le contenu binaire de chaque fichier pour pouvoir utiliser le fichier XOR comme clé K.
+
+Avec ces 4 fichiers résultant, nous cryptons la mainKey avec ces 4 fichiers.
+Ceci permettera lors de la mise en service de pouvoir trouver quel fichier XOR a été utiliser pour crypter la mainKey de la combinaison.
+
+Après le cryptage, nous utilisons mainKey.decrypt pour crypter unlockedFile et le sauver dataFile.crypt dans le disque.
+Le cryptage des clés à mettre sur les clés usb se fait encore toujours avec un mot de passe.
+
+
+Phase de BOOT (initialisation)
+1. créer une valeur random pour mainKey.decrypt, key1.decrypt, key1a.decrypt, key2.decrypt et key2a.decrypt.
+1.1 mainKey.decrypt
+(depuis crypto/)
+  dd if=/dev/random of=ramdisk/mainKey.decrypt bs=32 count=1
+1.2 key1.decrypt
+(depuis crypto/)
+  dd if=/dev/random of=ramdisk/key1.decrypt bs=32 count=1
+1.3 key1a.decrypt
+(depuis crypto/)
+  dd if=/dev/random of=ramdisk/key1a.decrypt bs=32 count=1
+1.4 key2.decrypt
+(depuis crypto/)
+  dd if=/dev/random of=ramdisk/key2.decrypt bs=32 count=1
+1.5 key2a.decrypt
+(depuis crypto/)
+  dd if=/dev/random of=ramdisk/key2a.decrypt bs=32 count=1
+  
+2. XOR avec toutes les combinaisons 
+(certaines ne sont pas présentes car XOR est associatif donc inutile de faire une opération dont le résultat à déjà été produit)
+xor_files(key1a.decrypt, key2.decrypt, XORKey1aKey2)
+xor_files(key1a.decrypt, key2a.decrypt, XORKey1aKey2a)
+xor_files(key1.decrypt, key2.decrypt, XORKey1Key2)
+xor_files(key1.decrypt, key2a.decrypt, XORKey1Key2a)
+
+3. cryptage du masterKey.decrypt avec les 4 combinaisons
+(depuis crypto/)
+3.1 XORKey1aKey2
+  openssl enc -aes-256-ecb -in ./ramdisk/mainKey.decrypt -out ./disk/mainKey1.crypt -K $(cat ./ramdisk/XORKey1aKey2)
+3.2 XORKey1aKey2a
+  openssl enc -aes-256-ecb -in ./ramdisk/mainKey.decrypt -out ./disk/mainKey2.crypt -K $(cat ./ramdisk/XORKey1aKey2a)
+3.3 XORKey1Key2
+  openssl enc -aes-256-ecb -in ./ramdisk/mainKey.decrypt -out ./disk/mainKey3.crypt -K $(cat ./ramdisk/XORKey1Key2)
+3.4 XORKey1Key2a
+  openssl enc -aes-256-ecb -in ./ramdisk/mainKey.decrypt -out ./disk/mainKey4.crypt -K $(cat ./ramdisk/XORKey1Key2a)
+
+4. création et cryptage du fichier unlockedFile
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./ramdisk/unlockedFile -out ./disk/dataFile.crypt -K $(cat ./ramdisk/mainKey.decrypt)
+
+5. cyptage des 4 clés
+>mdpResponsable1
+5.1.1 hasher mdp mdpResponsable1 => hash(mdpResponsable1)
+(depuis crypto/)
+  $(mdpResponsable1) | shasum -a 256 > hashedUserPassword
+5.1.2 crypter key1.decrypt
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./ramdisk/key1.decrypt -out ./cle-usb-1/key1.crypt -K $(cat ./ramdisk/hashedUserPassword)
+
+>mdpRepresentant1
+5.2.1 hasher mdp mdpRepresentant1 => hash(mdpRepresentant1)
+(depuis crypto/)
+  $(mdpRepresentant1) | shasum -a 256 > hashedUserPassword
+5.2.2 crypter key1a.decrypt
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./ramdisk/key1a.decrypt -out ./cle-usb-1a/key1a.crypt -K $(cat ./ramdisk/hashedUserPassword)
+
+>mdpResponsable2
+5.3.1 hasher mdp mdpResponsable2 => hash(mdpResponsable2)
+(depuis crypto/)
+  $(mdpResponsable2) | shasum -a 256 > hashedUserPassword
+5.3.2 crypter key2.decrypt
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./ramdisk/key2.decrypt -out ./cle-usb-2/key2.crypt -K $(cat ./ramdisk/hashedUserPassword)
+
+>mdpRepresentant2
+5.4.1 hasher mdp mdpRepresentant2 => hash(mdpRepresentant2)
+(depuis crypto/)
+  $(mdpRepresentant2) | shasum -a 256 > hashedUserPassword
+5.4.2 crypter key1a.decrypt
+(depuis crypto/)
+  openssl enc -aes-256-ecb -in ./ramdisk/key2a.decrypt -out ./cle-usb-2a/key2a.crypt -K $(cat ./ramdisk/hashedUserPassword)
+
+6. cleanup 
+(depuis crypto/)
+  rm ./ramdisk/*
+
+
+
+
+Phase de décryptage (Mise en service)
+1. introduire mdpUser1, le hasher et décrypter la key de la clé usb avec comme '-K' le mdp hashé.
+>mdpUser1
+(depuis crypto/)
+  $(mdpUser1) | shasum -a 256 > hashedUserPassword
+  openssl enc -d -aes-256-ecb -in ./cle-usb-1/key1.crypt -out ./ramdisk/key1.decrypt -K $(cat ./ramdisk/hashedUserPassword)
+
+2. introduire mdpUser2, le hasher et décrypter la key de la clé usb avec comme '-K' le mdp hashé.
+>mdpUser2
+(depuis crypto/)
+  $(mdpUser2) | shasum -a 256 > hashedUserPassword
+  openssl enc -d -aes-256-ecb -in ./cle-usb-2/key2.crypt -out ./ramdisk/key2.decrypt -K $(cat ./ramdisk/hashedUserPassword)
+
+3. Opération XOR sur les 2 key.decrypt obtenues
+xor_files(key1a.decrypt, key2.decrypt, XORTmp)
+
+4. Trouver quel mainKey.decrypt corresponds à la combinaison
+(depuis crypto/)
+  openssl enc -d -aes-256-ecb -in ./disk/mainKey1.decrypt -out ./ramdisk/mainKey.decrypt -K $(cat ./ramdisk/XORTmp)
+  ou
+  openssl enc -d -aes-256-ecb -in ./disk/mainKey2.decrypt -out ./ramdisk/mainKey.decrypt -K $(cat ./ramdisk/XORTmp)
+  ou
+  openssl enc -d -aes-256-ecb -in ./disk/mainKey3.decrypt -out ./ramdisk/mainKey.decrypt -K $(cat ./ramdisk/XORTmp)
+  ou
+  openssl enc -d -aes-256-ecb -in ./disk/mainKey4.decrypt -out ./ramdisk/mainKey.decrypt -K $(cat ./ramdisk/XORTmp)
+
+5. décrytage dataFile.crypt
+(depuis crypto/)
+  openssl enc -d -aes-256-ecb -in ./disk/dataFile.crypt -out ./ramdisk/unlockedFile -K $(cat ./ramdisk/mainKey.decrypt)

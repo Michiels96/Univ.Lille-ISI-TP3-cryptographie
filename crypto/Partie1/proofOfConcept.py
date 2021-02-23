@@ -40,14 +40,21 @@ class ProofOfConcept:
         return self.bootService.run()
 
     def cryptNewData(self):
-        # but: crypter ramdisk/unlockedFile => /disk/dataFile.crypt
-        res = subprocess.run(["openssl enc -aes-256-ecb -in ./ramdisk/unlockedFile -out ./disk/dataFile.crypt -K $(cat ./ramdisk/mainKey.decrypt)"], shell=True, stderr=subprocess.PIPE)
+        # but: crypter ramdisk/unlockedFile => /disk/dataFile
+        # Création dataFile.decrypt
+        res = subprocess.run(["openssl enc -aes-256-ecb -in ./ramdisk/unlockedFile -out ./ramdisk/dataFile.decrypt -K $(cat ./ramdisk/key2.decrypt)"], shell=True, stderr=subprocess.PIPE)
         if res.returncode != 0:
-            print("\tErreur, le cryptage 'dataFile.crypt' n'a pu être crypté - cryptNewData échoué\n")
+            print("\tErreur, unlockedFile n'a pu être crypté - cryptNewData échoué\n")
+            return -1
+
+        # Modification dataFile
+        res = subprocess.run(["openssl enc -aes-256-ecb -in ./ramdisk/dataFile.decrypt -out ./disk/dataFile -K $(cat ./ramdisk/key1.decrypt)"], shell=True, stderr=subprocess.PIPE)
+        if res.returncode != 0:
+            print("\tErreur, dataFile.decrypt n'a pu être crypté - cryptNewData échoué\n")
             return -1
 
     def run(self):
-        if path.exists('./disk/dataFile.crypt') == True:
+        if path.exists('./disk/dataFile') == True:
             self.bootOK = True
         while(True):
             print("Bienvenue dans le serveur, voici les services disponibles:")
